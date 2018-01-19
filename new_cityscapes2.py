@@ -4,15 +4,15 @@ cityscapes dataset that provided at: https://www.cityscapes-dataset.com/.
 
 In this training process, we uses both fine annotation and coarse annotation. 
 Detail amount of the dataset that we use are: 
-=========================================
-|No | Name       | type      | amount    |
-=========================================
-| 1 | train      | fine      |  2.975    | 
-| 2 | val        | fine      |    500    | 
-| 3 | train      | coarse    |  2.975    |
-| 4 | train+extra| coarse    | 19.000    |
-| 5 | val        | coarse    |    500    | 
-=========================================
+===========================================================
+|No | Name       | type      | amount    | Original Amount |
+===========================================================
+| 1 | train      | fine      |  2.975    |      2.975      |
+| 2 | val        | fine      |    500    |        500      | 
+| 3 | train      | coarse    |  2.975    |      2.975      | 
+| 4 | train+extra| coarse    | 19.000    |     19.998      | 
+| 5 | val        | coarse    |    500    |        500      |
+===========================================================
 
 Pretrained model was used to accelerate our training process. However, due to
 pretrained model availability, we need to choose the most popular model. In the 
@@ -88,7 +88,7 @@ import cv2
 # Dataset root folder
 path = '/home/adi005/Cityscapes/'
 
-training_is = 'fine'
+training_is = 'coarse'
 # Image Dimension
 im_width = 713
 im_height = 713 
@@ -96,12 +96,12 @@ data_shape = (im_height*im_width)
 im_dimension = 3 
 pretrainded = 0
 nb_classes = 35
-batch_size = 1
+batch_size = 2
 nb_epoch = 100
 if training_is == 'fine' : 
     # Image Number
     train_sample = 2970
-    steps = 297
+    steps = 10
     val_sample = 500
     split = train_sample/steps
     train_txt = 'train_fine_cityscapes.txt'
@@ -111,15 +111,15 @@ elif training_is == 'coarse':
     steps = 10
     val_sample = 500
     split = train_sample/steps
-    train_txt = 'train_coarse.txt'
-    val_txt = 'val_coarse.txt'
+    train_txt = 'train_coarse_cityscapes.txt'
+    val_txt = 'val_coarse_cityscapes.txt'
 else:
     train_sample = 19000
     steps = 50
     val_sample = 500
     split = train_sample/steps
-    train_txt = 'train_extra.txt'
-    val_txt = 'val_coarse.txt'
+    train_txt = 'trainExtra_coarse_cityscapes.txt.txt'
+    val_txt = 'val_coarse_cityscapes.txt'
 
 print("================================")
 print ('Training Sample : ', train_sample)
