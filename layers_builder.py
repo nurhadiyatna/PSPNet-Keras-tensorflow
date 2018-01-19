@@ -1,8 +1,9 @@
 from __future__ import print_function
 from math import ceil
 from keras.layers import Conv2D, MaxPooling2D, AveragePooling2D
-from keras.layers import BatchNormalization, Activation, Input, Dropout, ZeroPadding2D, Lambda
+from keras.layers import BatchNormalization, Activation, Input, Dropout, ZeroPadding2D, Lambda, Reshape
 from keras.layers.merge import Concatenate, Add
+from keras.layers.core import Permute
 from keras.models import Model
 from keras.optimizers import SGD
 
@@ -229,13 +230,13 @@ def build_pspnet(nb_classes, resnet_layers, input_shape, activation='softmax'):
 
     x = Conv2D(nb_classes, (1, 1), strides=(1, 1), name="conv6")(x)
     x = Lambda(Interp, arguments={'shape': (input_shape[0], input_shape[1])})(x)
+    x = Reshape((input_shape[0]*input_shape[1],nb_classes), input_shape=(nb_classes,input_shape[0],input_shape[1]))(x)
     x = Activation('softmax')(x)
-
     model = Model(inputs=inp, outputs=x)
 
     # Solver
-    sgd = SGD(lr=learning_rate, momentum=0.9, nesterov=True)
-    model.compile(optimizer=sgd,
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
+    # sgd = SGD(lr=learning_rate, momentum=0.9, nesterov=True)
+    # model.compile(optimizer=sgd,
+    #               loss='categorical_crossentropy',
+    #               metrics=['accuracy'])
     return model
