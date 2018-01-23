@@ -13,6 +13,7 @@ import argparse
 import numpy as np
 from scipy import misc, ndimage
 from keras import backend as K
+K.set_image_dim_ordering('th')
 from keras.models import model_from_json
 import tensorflow as tf
 import layers_builder as layers

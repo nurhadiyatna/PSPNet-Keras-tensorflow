@@ -91,7 +91,7 @@ import cv2
 path = '/home/adi005/Cityscapes/'
 
 training_is = 'fine'
-optim = 'rmsprop'
+optim = 'adam'
 # Image Dimension
 im_width = 713
 im_height = 713 
@@ -100,7 +100,7 @@ im_dimension = 3
 pretrainded = 1
 nb_classes = 35
 batch_size = 2
-nb_epoch = 50
+nb_epoch = 1
 
 if training_is == 'fine' : 
     # Image Number
@@ -112,7 +112,7 @@ if training_is == 'fine' :
     val_txt = 'val_fine_cityscapes.txt'
 elif training_is == 'coarse':
     train_sample = 2800
-    nb_epoch = nb_epoch
+    nb_epoch = nb_epoch - 80
     steps = 10
     val_sample = 500
     split = train_sample/steps
@@ -127,7 +127,6 @@ else:
     train_txt = 'trainExtra_coarse_cityscapes.txt'
     val_txt = 'val_coarse_cityscapes.txt'
 
-csv_logger = CSVLogger('log/Training_'+training_is+'_opti_'+optim+str(nb_epoch)+'-epochs_'+str(train_sample)+'_samples.log',append=True)
 print("================================")
 print ('Training Sample : ', train_sample)
 print ('Steps           : ', steps)
@@ -204,12 +203,7 @@ def binarylab(labels):
     x = np.zeros([im_height,im_width,nb_classes],dtype="uint8")
     for i in range(im_height):
         for j in range(im_width):
-            if labels[i][j]>34:
-                labels[i][j] = 0
-                x[i,j,labels[i][j]]=1
-                print ('More than 35')
-            else:
-                x[i,j,labels[i][j]]=1
+            x[i,j,labels[i][j]]=1
     return x
 
 def prep_train(j,k,train_txt):
@@ -225,8 +219,8 @@ def prep_train(j,k,train_txt):
         txt = f.readlines()
         # print(txt,'\n')
         txt = [line.split(',') for line in txt]
+    # print('Loaded Training Image from',j, ' to ', k)
     n = 0
-    print('Loading Training Images from',j, ' to ',k)
     for i in range(j,k):
         # print (path + txt[i][0][1:])
         # print (path + txt[i][1][1:][:-1])
@@ -236,41 +230,30 @@ def prep_train(j,k,train_txt):
         # train_label.append(binarylab(cv2.imread(path + txt[i][1][1:][:-1])[:,:,0]))
         # print(n, ' : ' ,path + txt[i][1][1:][:-1])
         n = n + 1
-        s = str(i) + '/'+str(k)                       # string for output
-        print('{0}\r'.format(s), end='')        # just print and flush
-        time.sleep(0.2)
-    print('\nLoaded Training Image from',j, ' to ', k)
+    print('Loaded Training Image from',j, ' to ', k)
     return train_data, train_label
 
-def prep_val(j,k,train_txt, splitval):
-    # val_data = np.zeros((val_sample, im_dimension, im_height, im_width), dtype="uint8")
-    # val_label = np.zeros((val_sample, im_height, im_width,nb_classes),dtype="uint8")
-    val_data = np.zeros((int(splitval), im_height, im_width, im_dimension), dtype="uint8")
-    val_label = np.zeros((int(splitval), im_height, im_width,nb_classes),dtype="uint8")
+def prep_val():
+    val_data = np.zeros((val_sample, im_dimension, im_height, im_width), dtype="uint8")
+    val_label = np.zeros((val_sample, im_height, im_width,nb_classes),dtype="uint8")
     # train_data = []
 
     #load Image from directory /Cityscapes/
     print("================================")
-    print("Loading Testing Image ... \n")
+    print("Loading Validation Image ... \n")
     print("================================")
     with open(path+val_txt) as f:
         txt = f.readlines()
         txt = [line.split(',') for line in txt]
-    print('Loading Testing Images from',j, ' to ',k)
-    n = 0
-    for i in range(j,k):
+    for i in range(len(txt)):
         # print(path + txt[1][0][1:])
         # print(path + txt[i][1][1:][:-1])
-        # val_data[n] = np.rollaxis(cv2.imread(path + txt[i][0][1:]),2)
-        val_data[n] = cv2.imread(path+txt[i][0][1:])
-        val_label [n] = binarylab(cv2.imread(path + txt[i][1][1:][:-1])[:,:,0])
+        val_data[i] = np.rollaxis(cv2.imread(path + txt[i][0][1:]),2)
+        #val_data[i] = cv2.imread(path+txt[i][0][1:])
+        val_label [i] = binarylab(cv2.imread(path + txt[i][1][1:][:-1])[:,:,0])
         # train_label.append(binarylab(cv2.imread(path + txt[i][1][1:][:-1])[:,:,0]))
-        n = n + 1
         # print(i, ' : ' , path + txt[i][1][1:][:-1])
-        s = str(i) + '/'+str(k)                       # string for output
-        print('{0}\r'.format(s), end='')        # just print and flush
-        time.sleep(0.2)
-    print('\nLoaded Testing Images from',j, ' to ',k)
+    print('Loaded Training Image from',i, ' to ', len(txt))
     return val_data, val_label
 
 #autoencoder = segnet()
@@ -281,17 +264,17 @@ model = layers.build_pspnet(nb_classes=nb_classes,
 # autoencoder = segnet()
 # print (autoencoder.summary())
 if pretrainded == 1 : 
-    model.load_weights('Training_fine_rmsprop_2970_samples_9_splits.h5')
-    print ('Weights Loaded...')
+    model.load_weights('Training_fine_adam_2970_samples_3_splits.h5')
+    print ('Wights Loaded...')
 
 # print(autoencoder.summary())
 #create log in csv style
-# csv_logger = CSVLogger('log/Training_'+training_is+'_'+str(train_sample)+'_samples.log',append=True)
+csv_logger = CSVLogger('log/Training_'+training_is+'_'+str(train_sample)+'_samples.log',append=True)
 #create optimizer
 if optim == 'sgd' : 
     optimi = optimizers.SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
 elif optim == 'rmsprop':
-    optimi = optimizers.RMSprop(lr=0.0001, rho=0.9, epsilon=None, decay=0.0)
+    optimi = optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=None, decay=0.0)
 elif optim == 'adam':
     optimi = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 elif optim == 'adadelta':
@@ -305,56 +288,48 @@ else:
 model.compile(loss="categorical_crossentropy", optimizer=optimi, metrics=['accuracy'])
 
 time_start = time.clock()
-# j=0
-# k=0
-# for i in range(0,steps):
-#     j = i*(split)
-#     k = j+(split)
-#     txt = train_txt
-#     print('============================================================= \n')
-#     print('Training and Validation Data From = ', int(j),' : ',int(k)-1,'\n')
-#     print('============================================================= \n')
-#     # load splitted training image  
-#     train, train_label = prep_train(int(j),int(k),txt)
-#     # reshape label image to appropiate model we proposed 
-#     train_label = np.reshape(train_label,(int(split),data_shape,nb_classes))
-#     # fitting the the model
-#     history = model.fit(train, train_label, batch_size=batch_size, epochs=nb_epoch,callbacks = [csv_logger],
-#                         # uncomment this if you want use validation data
-#                         # verbose=1, validation_data=(val,val_label), shuffle=True)
-#                         # use split to validate model 
-#                         verbose=1, validation_split=0.2, shuffle=True)
-#     model.save_weights('Training_'+training_is+'_'+optim+'_'+str(train_sample)+'_samples_'+str(i)+'_splits.h5')
-#     print ('This is ',i,'of splits, and',split-i,'remaining')
-#     # history = autoencoder.fit_generator(datagen.flow(train, train_label,
-#     #                     batch_size=batch_size),
-#     #                     epochs=nb_epoch,
-#     #                     validation_data=(val,val_label),
-#     #                     workers=4)
-
-# model.save_weights('Final_Training_'+training_is+'_'+optim+'_'+str(train_sample)+'_samples.h5')
-j = 0
-k = 0
-splitval = val_sample/steps
+j=0
+k=0
 for i in range(0,steps):
-    j = i*(splitval)
-    k = j+(splitval)
-    txt = val_txt
-    print('\n============================================================= \n')
-    print('Load Testing images and Creating Validation label \n ')
+    j = i*(split)
+    k = j+(split)
+    txt = train_txt
     print('============================================================= \n')
-    val, val_label = prep_val(int(j),int(k),txt,int(splitval))
-    val_label = np.reshape(val_label,(int(splitval),data_shape,nb_classes))
-    score = model.evaluate(val,val_label, batch_size=batch_size, verbose=1)
-    print("==========================================")
-    print ('Loss : ',score[0])
-    print ('ACCS : ',score[1]*100)
-    print("==========================================")
+    print('Training and Validation Data From = ', int(j),' : ',int(k)-1,'\n')
+    print('============================================================= \n')
+    # load splitted training image  
+    train, train_label = prep_train(int(j),int(k),txt)
+    # reshape label image to appropiate model we proposed 
+    train_label = np.reshape(train_label,(int(split),data_shape,nb_classes))
+    # fitting the the model
+    history = model.fit(train, train_label, batch_size=batch_size, epochs=nb_epoch,callbacks = [csv_logger],
+                        # uncomment this if you want use validation data
+                        # verbose=1, validation_data=(val,val_label), shuffle=True)
+                        # use split to validate model 
+                        verbose=1, validation_split=0.2, shuffle=True)
+    model.save_weights('Training_'+training_is+'_'+optim+'_'+str(train_sample)+'_samples_'+str(i)+'_splits.h5')
+    print ('This is ',i,'of splits, and',split-i,'remaining')
+    # history = autoencoder.fit_generator(datagen.flow(train, train_label,
+    #                     batch_size=batch_size),
+    #                     epochs=nb_epoch,
+    #                     validation_data=(val,val_label),
+    #                     workers=4)
+print('\n============================================================= \n')
+print('Load Testing images and Creating Validation label \n ')
+print('============================================================= \n')
+val, val_label = prep_val()
+val_label = np.reshape(val_label,(val_sample,data_shape,nb_classes))
 
+score = model.evaluate(val,val_label, batch_size=batch_size, show_accuracy=True, verbose=1)
+print("==========================================")
+print ('Loss : ',score[0])
+print ('ACCS : ',score[1]*100)
+print("==========================================")
 time_elapsed = (time.clock() - time_start)
 print('Time : ', time_elapsed,'s, or ',round(time_elapsed/3600,2),'h or , ',round(time_elapsed/3600,2)/24,'days' )
 print("==========================================")
 
+model.save_weights('Training_'+training_is+'_'+optim+'_'+str(train_sample)+'_samples.h5')
 
 
 # height = np.size(train_label[0], 0)

@@ -62,21 +62,16 @@ import numpy as np
 import matplotlib.image as mpimg
 from keras import optimizers
 from keras.models import model_from_json
-#import theano.tensor as T
-#np.random.seed(1337) # for reproducibility
 from keras.callbacks import CSVLogger
 import pickle
 from six.moves import cPickle
 from keras.layers.noise import GaussianNoise
 import keras.models as models
-# from keras.models import load_model
 from keras.layers.core import Layer, Dense, Dropout, Activation, Flatten, Reshape, Permute
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, UpSampling2D, ZeroPadding2D
 from keras.layers.normalization import BatchNormalization
 from keras.utils import np_utils
-#from keras.regularizers import ActivityRegularizer
 from keras import metrics
-#from keras.utils.visualize_util import plot
 from numpy import array
 from keras import backend as K
 K.set_image_dim_ordering('tf')
@@ -84,7 +79,9 @@ import numpy as np
 from scipy.misc import toimage
 import matplotlib.pyplot as plt
 import layers_builder as layers
+# from pspnet import PSPNet
 import cv2
+
 # General Parameter
 # ===================
 # Dataset root folder
@@ -204,7 +201,7 @@ def binarylab(labels):
     x = np.zeros([im_height,im_width,nb_classes],dtype="uint8")
     for i in range(im_height):
         for j in range(im_width):
-            if labels[i][j]>34:
+            if labels[i][j]>35:
                 labels[i][j] = 0
                 x[i,j,labels[i][j]]=1
                 print ('More than 35')
@@ -278,94 +275,93 @@ resnet_layers = 50
 model = layers.build_pspnet(nb_classes=nb_classes,
                                              resnet_layers=resnet_layers,
                                              input_shape=(713, 713))
-# autoencoder = segnet()
-# print (autoencoder.summary())
+# # autoencoder = segnet()
+# # print (autoencoder.summary())
 if pretrainded == 1 : 
-    model.load_weights('Training_fine_rmsprop_2970_samples_9_splits.h5')
+    model.load_weights('Training_fine_rmsprop_2970_samples_8_splits.h5')
     print ('Weights Loaded...')
 
-# print(autoencoder.summary())
-#create log in csv style
-# csv_logger = CSVLogger('log/Training_'+training_is+'_'+str(train_sample)+'_samples.log',append=True)
-#create optimizer
-if optim == 'sgd' : 
-    optimi = optimizers.SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-elif optim == 'rmsprop':
-    optimi = optimizers.RMSprop(lr=0.0001, rho=0.9, epsilon=None, decay=0.0)
-elif optim == 'adam':
-    optimi = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-elif optim == 'adadelta':
-    optimi = optimizers.Adadelta(lr=1.0, rho=0.95, epsilon=None, decay=0.0)
-elif optim == 'adagrad':
-    optimi = optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
-else:
-    optimi = optimizers.Adamax(lr=0.002, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0)
+unlabeled = [  0,  0,  0]
+ego_vehicle = [0,  0,  0]
+rectification_border = [0,  0,  0]
+out_of_roi = [0,  0,  0]
+static = [0,  0,  0]
+dynamic = [111, 74,  0]
+ground = [81,  0, 81]
+road = [128, 64,128]
+sidewalk = [244, 35,232]
+parking = [250,170,160]
+rail_track = [230,150,140]
+building = [70, 70, 70]
+wall = [102,102,156]
+fence = [190,153,153]
+guard_rail = [180,165,180]
+bridge = [150,100,100]
+tunnel = [150,120, 90]
+pole =[153,153,153]
+polegroup = [153,153,153]
+traffic_light = [250,170, 30]
+traffic_sign = [220,220,  0]
+vegetation = [107,142, 35]
+terrain = [152,251,152]
+sky = [70,130,180]
+person = [220, 20, 60]
+rider = [255,  0,  0]
+car = [0,  0,142]
+truck = [0,  0, 70]
+bus = [0, 60,100]
+caravan = [0,  0, 90]
+trailer = [0,  0,110]
+train = [0, 80,100]
+motorcycle = [0,  0,230]
+bicycle = [119, 11, 32]
+license_plate = [0,  0,142]
 
-#comipile generated model
-model.compile(loss="categorical_crossentropy", optimizer=optimi, metrics=['accuracy'])
-
-time_start = time.clock()
-# j=0
-# k=0
-# for i in range(0,steps):
-#     j = i*(split)
-#     k = j+(split)
-#     txt = train_txt
-#     print('============================================================= \n')
-#     print('Training and Validation Data From = ', int(j),' : ',int(k)-1,'\n')
-#     print('============================================================= \n')
-#     # load splitted training image  
-#     train, train_label = prep_train(int(j),int(k),txt)
-#     # reshape label image to appropiate model we proposed 
-#     train_label = np.reshape(train_label,(int(split),data_shape,nb_classes))
-#     # fitting the the model
-#     history = model.fit(train, train_label, batch_size=batch_size, epochs=nb_epoch,callbacks = [csv_logger],
-#                         # uncomment this if you want use validation data
-#                         # verbose=1, validation_data=(val,val_label), shuffle=True)
-#                         # use split to validate model 
-#                         verbose=1, validation_split=0.2, shuffle=True)
-#     model.save_weights('Training_'+training_is+'_'+optim+'_'+str(train_sample)+'_samples_'+str(i)+'_splits.h5')
-#     print ('This is ',i,'of splits, and',split-i,'remaining')
-#     # history = autoencoder.fit_generator(datagen.flow(train, train_label,
-#     #                     batch_size=batch_size),
-#     #                     epochs=nb_epoch,
-#     #                     validation_data=(val,val_label),
-#     #                     workers=4)
-
-# model.save_weights('Final_Training_'+training_is+'_'+optim+'_'+str(train_sample)+'_samples.h5')
-j = 0
-k = 0
-splitval = val_sample/steps
-for i in range(0,steps):
-    j = i*(splitval)
-    k = j+(splitval)
-    txt = val_txt
-    print('\n============================================================= \n')
-    print('Load Testing images and Creating Validation label \n ')
-    print('============================================================= \n')
-    val, val_label = prep_val(int(j),int(k),txt,int(splitval))
-    val_label = np.reshape(val_label,(int(splitval),data_shape,nb_classes))
-    score = model.evaluate(val,val_label, batch_size=batch_size, verbose=1)
-    print("==========================================")
-    print ('Loss : ',score[0])
-    print ('ACCS : ',score[1]*100)
-    print("==========================================")
-
-time_elapsed = (time.clock() - time_start)
-print('Time : ', time_elapsed,'s, or ',round(time_elapsed/3600,2),'h or , ',round(time_elapsed/3600,2)/24,'days' )
-print("==========================================")
+label_colours = np.array([unlabeled , ego_vehicle ,rectification_border ,out_of_roi ,static ,dynamic ,ground ,road ,sidewalk ,parking ,rail_track ,building ,wall ,fence , guard_rail ,bridge ,tunnel ,pole ,polegroup ,traffic_light ,traffic_sign ,
+                        vegetation ,terrain ,sky ,person , rider , car , truck , bus , caravan , trailer , train , motorcycle , bicycle ,license_plate])
 
 
+def visualize(temp, plot=True):
+    r = temp.copy()
+    g = temp.copy()
+    b = temp.copy()
+    for l in range(0,34):
+        r[temp==l]=label_colours[l,0]
+        g[temp==l]=label_colours[l,1]
+        b[temp==l]=label_colours[l,2]
 
-# height = np.size(train_label[0], 0)
-# width = np.size(train_label[0], 1)
-# depth = np.size(train_label[0], 2)
+    rgb = np.zeros((713, 713, 3))
+    rgb[:,:,0] = (r/255.0)#[:,:,0]
+    rgb[:,:,1] = (g/255.0)#[:,:,1]
+    rgb[:,:,2] = (b/255.0)#[:,:,2]
+    if plot:
+        plt.imshow(rgb)
+        plt.show()
+    else:
+        return rgb
 
-# print(height)
-# print(width)
-# print(depth)
-# print(train_label[1].shape)
-# print(np.rollaxis(train[1],0,3).shape)
+print (model.summary())
+txt = train_txt
+train, train_label = prep_train(0,2,txt)
 
-# # print(train[1])
-# mpimg.imsave('coba.jpg',np.rollaxis(train[1],0,3))
+print ('==================\n')
+print ('Predict Image ...')
+print ('==================\n')
+coba=model.predict(train,batch_size=batch_size)
+print ('==================\n')
+print ('Visualize Image ...')
+print ('==================\n')
+pred = visualize(np.argmax(coba[1],axis=1).reshape((713,713)), False)
+
+fig = plt.figure()
+plt.subplot(121)
+plt.imshow(train[1])
+plt.subplot(122)
+plt.imshow(pred)
+plt.show()
+
+
+# print (pred.shape())
+# plt.imshow(pred)
+# plt.imshow(cv2.cvtColor(pred, cv2.COLOR_BGR2RGB))
+# plt.show()
