@@ -70,7 +70,7 @@ nb_epoch = 100
 if training_is == 'fine' : 
     # Image Number
     train_sample = 2970
-    steps = 3
+    steps = 50
     val_sample = 500
     split = train_sample/steps
     train_txt = 'train_fine_cityscapes.txt'
@@ -91,78 +91,6 @@ else:
     split = train_sample/steps
     train_txt = 'trainExtra_coarse_cityscapes.txt'
     val_txt = 'val_coarse_cityscapes.txt'
-
-csv_logger = CSVLogger('log/Training_'+model_names+'_'+training_is+'_'+optim+'_'+str(nb_epoch)+'_epochs_'+str(train_sample)+'_samples.log',append=True)
-print ("================================")
-print ('Model Name      : ', model_names)
-print ('Training Sample : ', train_sample)
-print ('Steps           : ', steps)
-print ('split per steps : ', split)
-print ('train_txt       : ', train_txt)
-print ('train_txt       : ', val_txt)
-print ('Epoch           : ', nb_epoch)
-print ("================================")
-
-def new(): 
-    model = models.Sequential()
-    model.add(Layer(input_shape=(im_dimension, im_height, im_width)))
-    return model
-
-def segnet():
-    autoencoder = models.Sequential()
-    # Add a noise layer to get a denoising autoencoder. This helps avoid overfitting
-    autoencoder.add(Layer(input_shape=(im_dimension, im_height, im_width)))
-
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(64, 3, 3, subsample = (1,1),border_mode='valid'))
-    # print (autoencoder.summary())
-    autoencoder.add(BatchNormalization())
-    autoencoder.add(Activation('relu'))
-    autoencoder.add(MaxPooling2D(pool_size=(2, 2)))
-    # print (autoencoder.summary())
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(64, 3, 3, border_mode='valid'))
-    autoencoder.add(BatchNormalization())
-    autoencoder.add(Activation('relu'))
-    autoencoder.add(MaxPooling2D(pool_size=(2, 2)))
-
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(128, 3, 3, border_mode='valid'))
-    autoencoder.add(BatchNormalization())
-    autoencoder.add(Activation('relu'))
-    autoencoder.add(MaxPooling2D(pool_size=(2, 2)))
-
-
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(256, 3, 3, border_mode='valid'))
-    autoencoder.add(BatchNormalization())
-    autoencoder.add(Activation('relu'))
-
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(256, 3, 3, border_mode='valid'))
-    autoencoder.add(BatchNormalization())
-
-    autoencoder.add(UpSampling2D(size=(2,2)))
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(128, 3, 3, border_mode='valid'))
-    autoencoder.add(BatchNormalization())
-
-    autoencoder.add(UpSampling2D(size=(2,2)))
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(64, 3, 3, border_mode='valid'))
-    autoencoder.add(BatchNormalization())
-
-    autoencoder.add(UpSampling2D(size=(2,2)))
-    autoencoder.add(ZeroPadding2D(padding=(1,1)))
-    autoencoder.add(Convolution2D(64, 3, 3, border_mode='valid'))
-    autoencoder.add(BatchNormalization())
-    # autoencoder.add(Layer(input_shape=(im_dimension, im_height,im_width)))
-    autoencoder.add(Convolution2D(nb_classes, 1, 1, border_mode='valid',))
-    #import ipdb; ipdb.set_trace()
-    autoencoder.add(Reshape((nb_classes,data_shape), input_shape=(nb_classes,im_height,im_width)))
-    autoencoder.add(Permute((2, 1)))
-    autoencoder.add(Activation('softmax'))
-    return autoencoder
 
 
 def crop(input):
@@ -300,39 +228,103 @@ def visualize_id(temp, plot=True):
     else:
         return rgb
 
-input = cv2.imread('weimar_000139_000019_leftImg8bit.png')        
-input_sliced = np.zeros((6,713, 713, 3), dtype="uint8")
-input_sliced[0],input_sliced[1], input_sliced[2],input_sliced[3],input_sliced[4],input_sliced[5] = crop(input)
+def prep_val(j,k,train_txt, splitval):
+    # val_data = np.zeros((val_sample, im_dimension, im_height, im_width), dtype="uint8")
+    # val_label = np.zeros((val_sample, im_height, im_width,nb_classes),dtype="uint8")
+    val_data = np.zeros((int(splitval), im_height, im_width, im_dimension), dtype="uint8")
 
-print ('==================\n')
-print ('Predict Image ...')
-print ('==================\n')
-import time
-time_start = time.clock()
-score=model.predict(input_sliced,batch_size=batch_size)
-# time_elapsed = (time.clock() - time_start)
-print('Time : ', time.clock() - time_start,'s')
-print("==========================================")
-print ('==================\n')
-print ('Visualize Image ...')
-print ('==================\n')
-# print (coba)
-seg = np.zeros((6,713, 713, 3), dtype="float64")
-seg2 = np.zeros((6,713, 713, 3), dtype="uint8")
-for i in range(0,6):
-	id_pred = visualize_id(np.argmax(score[i],axis=1).reshape((713,713)),False)
-	pred = visualize(np.argmax(score[i],axis=1).reshape((713,713)), False)
-	seg2[i] = id_pred
-	seg [i] = pred
+    # train_data = []
 
-# cv2.imshow('hasil akhir',seg[3])
+    #load Image from directory /Cityscapes/
+    print("================================")
+    print("Loading Validation Image ... \n")
+    print("================================")
+    with open(path+val_txt) as f:
+        txt = f.readlines()
+        txt = [line.split(',') for line in txt]
+    print('Loading Testing Images from',j, ' to ',k)
+    n = 0
+    for i in range(j,k):
+        # print(path + txt[1][0][1:])
+        # print(path + txt[i][1][1:][:-1])
+        # val_data[n] = np.rollaxis(cv2.imread(path + txt[i][0][1:]),2)
+        val_data[n] = cv2.imread(path+txt[i][0][1:])
+        # val_label [n] = binarylab(cv2.imread(path + txt[i][1][1:][:-1])[:,:,0])
+        # train_label.append(binarylab(cv2.imread(path + txt[i][1][1:][:-1])[:,:,0]))
+        n = n + 1
+        s = str(i) + '/'+str(k)                       # string for output
+        print('{0}\r'.format(s), end='')        # just print and flush
+        time.sleep(0.2)
+        # print(i, ' : ' , path + txt[i][1][1:][:-1])
+    print('Loaded Testing Images from',j, ' to ',k)
+    return val_data
+
+
+j = 0
+k = 0
+splitval = val_sample/steps
+for i in range(0,steps):
+    j = i*(splitval)
+    k = j+(splitval)
+    txt = val_txt
+    print('\n============================================================= \n')
+    print('Load Testing images and Creating Validation label \n ')
+    print('============================================================= \n')
+    val= prep_val(int(j),int(k),txt,int(splitval))
+    # print(file_name[i])
+    score=model.predict(val,batch_size=batch_size)
+    seg = np.zeros((int(splitval),713, 713, 3), dtype="float64")
+    seg2 = np.zeros((int(splitval),713, 713, 3), dtype="uint8")
+    for m in range(0,int(splitval)):
+        id_pred = visualize_id(np.argmax(score[m],axis=1).reshape((713,713)),False)
+        pred = visualize(np.argmax(score[m],axis=1).reshape((713,713)), False)
+        seg2[m] = id_pred
+        seg [m] = pred
+        if m == 9:
+            fig = plt.figure()
+            plt.subplot(131)
+            plt.imshow(val[1])
+            plt.subplot(132)
+            plt.imshow(seg[1])
+            plt.subplot(133)
+            plt.imshow(seg2[1])
+            # plt.imshow(seg[5])
+            plt.show()
+        # plt.imsave(str(splitval+m)+'.png')
+        # Next step is to write whole tested image into a same name as the id
+
+'''
+This is sliced prediction block 
+'''
+
+# input = cv2.imread('weimar_000139_000019_leftImg8bit.png')        
+# input_sliced = np.zeros((6,713, 713, 3), dtype="uint8")
+# input_sliced[0],input_sliced[1], input_sliced[2],input_sliced[3],input_sliced[4],input_sliced[5] = crop(input)
+
+# print ('==================\n')
+# print ('Predict Image ...')
+# print ('==================\n')
+# score=model.predict(input_sliced,batch_size=batch_size)
+# print ('==================\n')
+# print ('Visualize Image ...')
+# print ('==================\n')
+# # print (coba)
+# seg = np.zeros((6,713, 713, 3), dtype="float64")
+# seg2 = np.zeros((6,713, 713, 3), dtype="uint8")
+# for i in range(0,6):
+# 	id_pred = visualize_id(np.argmax(score[i],axis=1).reshape((713,713)),False)
+# 	pred = visualize(np.argmax(score[i],axis=1).reshape((713,713)), False)
+# 	seg2[i] = id_pred
+# 	seg [i] = pred
+
+# # cv2.imshow('hasil akhir',seg[3])
+# # cv2.waitKey(0)
+# # cv2.destroyAllWindows()
+# hasil = merge(seg[0],seg[1], seg[2],seg[3],seg[4],seg[5])
+# plt.imshow(seg2[1])
+# # plt.imshow(seg[5])
+# plt.show()
+# # cv2.imshow('Segmentation',hasil)
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
-hasil = merge(seg[0],seg[1], seg[2],seg[3],seg[4],seg[5])
-plt.imshow(seg2[1])
-# plt.imshow(seg[5])
-plt.show()
-# cv2.imshow('Segmentation',hasil)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-plt.imsave('FUll_merged.png', hasil)
+# plt.imsave('FUll_merged.png', hasil)
