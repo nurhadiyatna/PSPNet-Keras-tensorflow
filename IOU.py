@@ -11,8 +11,8 @@ im_height = 713
 nb_classes = 35
 path = '/home/gandalf/hasil_training/histogram/'
 val_txt = 'val_fine_cityscapes.txt'
-steps = 500
-val_sample = 500
+steps = 3
+val_sample = 3
 
 def binarylab(labels):
     x = np.zeros([im_height,im_width,nb_classes],dtype="uint8")
@@ -54,6 +54,7 @@ l = 0
 splitval = val_sample/steps
 conf_m = np.zeros((nb_classes, nb_classes), dtype=float)
 IOU_mean = np.zeros((nb_classes), dtype = float)
+counting = np.zeros((nb_classes), dtype = float)
 for i in range(0,steps):
     j = i*(splitval)
     k = j+(splitval)
@@ -83,7 +84,8 @@ for i in range(0,steps):
         #     IOU[i] = 1
             print ('IoU object : ', i, ' : ', (IOU[i]*100), '%')
         # if i>0 : 
-            IOU_mean[i] = IOU_mean[i-1]+IOU[i]
+            IOU_mean[i] = IOU_mean[i]+IOU[i]
+            counting[i] = counting[i]+1
             # print (IOU_mean)
     # plt.imshow(val_predict)
     # plt.show()
@@ -91,4 +93,4 @@ for i in range(0,steps):
     l = l + 1
 
 for i in range (nb_classes):
-    print ('Mean IOU [',i,']',(IOU_mean[i]/500)*100)
+    print ('Mean IOU [',i,']',(IOU_mean[i]/counting[i])*100)
